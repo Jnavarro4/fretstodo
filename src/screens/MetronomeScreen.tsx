@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { bpmFromTaps, Metronome } from '../engine/metronome';
 import { useI18n } from '../i18n/I18nContext';
 import { Switch } from '../components/Switch';
+import { useWakeLock } from '../hooks/useWakeLock';
 
 const TIME_SIGS = ['2/4', '3/4', '4/4', '5/4', '6/8', '7/8', '9/8', '12/8'];
 
@@ -15,6 +16,9 @@ export function MetronomeScreen() {
   const [playing, setPlaying] = useState(false);
   const [activeBeat, setActiveBeat] = useState<number | null>(null);
   const [silentBar, setSilentBar] = useState(false);
+
+  /** La pantalla no se apaga mientras el metrónomo suena. */
+  useWakeLock(playing);
 
   const metroRef = useRef<Metronome | null>(null);
   const tapsRef = useRef<number[]>([]);

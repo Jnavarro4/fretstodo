@@ -9,6 +9,7 @@ import {
 } from '../engine/intervalEngine';
 import { useI18n } from '../i18n/I18nContext';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useWakeLock } from '../hooks/useWakeLock';
 import { Segmented } from '../components/Segmented';
 import { Stepper } from '../components/Stepper';
 import { Switch } from '../components/Switch';
@@ -48,6 +49,9 @@ export function TrainScreen({ onExercise, onSessionEnd }: TrainScreenProps) {
   const startRef = useRef<number | null>(null);
   const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inSession = exercise !== null;
+
+  /** La pantalla no se apaga mientras hay sesión activa. */
+  useWakeLock(inSession);
 
   const patch = (partial: Partial<TrainSettings>) =>
     setSettings((prev) => ({ ...prev, ...partial }));

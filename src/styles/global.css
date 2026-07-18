@@ -31,6 +31,22 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Elimina el retraso de doble-tap y el zoom accidental al tocar controles */
+button,
+select,
+input,
+.chip,
+.todo,
+.stage {
+  touch-action: manipulation;
+}
+
+button,
+.chip {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 html,
 body,
 #root {
@@ -42,6 +58,8 @@ body {
   color: var(--text);
   font-family: var(--font-body);
   min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: contain; /* evita el pull-to-refresh en medio de la práctica */
 }
 
 h1, h2, h3, .display {
@@ -71,7 +89,7 @@ input:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 20px 10px;
+  padding: calc(18px + env(safe-area-inset-top, 0px)) 20px 10px;
   max-width: 560px;
   width: 100%;
   margin: 0 auto;
@@ -467,11 +485,13 @@ input:focus-visible {
 
 .add-row input {
   flex: 1;
+  min-width: 0;
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 12px;
   color: var(--text);
-  font: 500 14px var(--font-body);
+  /* 16px mínimo: evita que iOS haga zoom al enfocar el campo */
+  font: 500 16px var(--font-body);
   padding: 12px 14px;
   outline: none;
 }
@@ -566,7 +586,13 @@ input:focus-visible {
   border-radius: 8px;
 }
 
-.preset:hover {
+@media (hover: hover) {
+  .preset:hover {
+    color: var(--tiger);
+  }
+}
+
+.preset:active {
   color: var(--tiger);
 }
 
@@ -644,7 +670,7 @@ input:focus-visible {
 }
 
 .root-note {
-  font: 700 84px/1 var(--font-display);
+  font: 700 clamp(64px, 22vw, 84px)/1 var(--font-display);
   letter-spacing: -0.03em;
   margin: 6px 0 20px;
   animation: pop 0.25s ease;
@@ -776,13 +802,15 @@ input:focus-visible {
 .tempo-controls {
   display: flex;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
   margin-top: 16px;
 }
 
 .tempo-controls button {
-  min-width: 56px;
-  padding: 12px 0;
+  flex: 1;
+  min-width: 0;
+  max-width: 72px;
+  padding: 13px 0;
   border-radius: 12px;
   border: 1px solid var(--line);
   background: var(--card-2);
@@ -861,8 +889,9 @@ input:focus-visible {
   border: 1px solid var(--line);
   color: var(--text);
   border-radius: 10px;
-  padding: 10px;
-  font: 500 14px var(--font-body);
+  padding: 12px 10px;
+  /* 16px mínimo: evita el zoom de iOS al abrir el selector */
+  font: 500 16px var(--font-body);
   outline: none;
   -webkit-appearance: none;
   appearance: none;

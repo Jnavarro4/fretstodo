@@ -50,15 +50,30 @@ export interface Exercise {
 
 /**
  * Genera un ejercicio aleatorio evitando repetir exactamente el anterior.
+ * Si se pasan pesos (según valoraciones fácil/difícil del usuario, estilo
+ * repetición espaciada), los intervalos difíciles aparecen más seguido.
  * Devuelve null si no hay intervalos habilitados.
  */
 export function randomExercise(
   enabledIds: IntervalId[],
   dirMode: DirectionMode,
   previous: Exercise | null = null,
+  weights?: Partial<Record<IntervalId, number>>,
 ): Exercise | null {
   const pool = INTERVALS.filter((i) => enabledIds.includes(i.id));
   if (pool.length === 0) return null;
+
+  const pickWeighted = (): Interval => {
+    if (!weights) return pool[Math.floor(Math.random() * pool.length)];
+    const ws = pool.map((i) => Math.max(0.4, weights[i.id] ?? 1));
+    const total = ws.reduce((a, b) => a + b, 0);
+    let r = Math.random() * total;
+    for (let i = 0; i < pool.length; i++) {
+      r -= ws[i];
+      if (r <= 0) return pool[i];
+    }
+    return pool[pool.length - 1];
+  };
 
   let interval: Interval;
   let root: Note;
@@ -66,7 +81,7 @@ export function randomExercise(
   let guard = 0;
 
   do {
-    interval = pool[Math.floor(Math.random() * pool.length)];
+    interval = pickWeighted();
     root = NOTES[Math.floor(Math.random() * NOTES.length)];
     dir = dirMode === 'rand' ? (Math.random() < 0.5 ? 'asc' : 'desc') : dirMode;
     guard++;

@@ -79,17 +79,28 @@ export function FretboardDiagram({ box, playedMidis, activeMidi }: FretboardDiag
           const fill = isActive || isPlayed ? 'var(--green)' : 'var(--tiger)';
           const cx = noteX(d.fret);
           const cy = stringY(7 - d.string);
+          const r = d.fret === 0 ? 6.5 : isActive ? 9.5 : 8;
           return (
             <g key={i}>
               {isActive && <circle cx={cx} cy={cy} r={14.5} fill="var(--green)" opacity={0.28} />}
               <circle
                 cx={cx}
                 cy={cy}
-                r={d.fret === 0 ? 6.5 : isActive ? 9.5 : 8}
+                r={r}
                 fill={fill}
                 stroke={d.isRoot ? '#FFFFFF' : 'none'}
                 strokeWidth={d.isRoot ? 2 : 0}
               />
+              {isPlayed && !isActive && (
+                <path
+                  d={`M ${cx - 3.4} ${cy + 0.2} L ${cx - 1} ${cy + 2.8} L ${cx + 3.6} ${cy - 2.6}`}
+                  stroke="#0D0E11"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+              )}
             </g>
           );
         })}

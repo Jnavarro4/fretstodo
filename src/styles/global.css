@@ -1384,3 +1384,107 @@ input:focus-visible {
   color: var(--green);
   animation: pop 0.25s ease;
 }
+
+/* ---------- Valoración de intervalos (flashcards) ---------- */
+.rate-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.rate-btn {
+  padding: 17px;
+  border-radius: 14px;
+  font: 700 16px var(--font-display);
+  letter-spacing: 0.02em;
+  transition: transform 0.1s ease;
+}
+
+.rate-btn:active {
+  transform: scale(0.97);
+}
+
+.rate-hard {
+  background: var(--tiger-soft);
+  border: 1px solid rgba(251, 106, 26, 0.5);
+  color: var(--tiger);
+}
+
+.rate-easy {
+  background: var(--green-soft);
+  border: 1px solid rgba(52, 211, 153, 0.5);
+  color: var(--green);
+}
+
+.answer-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  animation: pop 0.2s ease;
+}
+
+.hear-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  color: var(--text-2);
+  border-radius: 999px;
+  padding: 9px 15px;
+  font: 600 13px var(--font-body);
+}
+
+.hear-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ---------- Pastilla verde de tiempo cumplido ---------- */
+.timer-pill.finished {
+  border-color: rgba(52, 211, 153, 0.6);
+  background: var(--card-2);
+}
+
+.timer-pill.finished .timer-pill-title {
+  color: var(--green);
+  font: 700 13px var(--font-body);
+}
+
+/* ---------- Chip de tarea en pausa ---------- */
+.todo-chip.paused {
+  border-color: rgba(251, 106, 26, 0.5);
+  color: var(--text);
+  font: 700 12px var(--font-display);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Nota en vivo del Coach ---------- */
+.coach-note {
+  display: inline-flex;
+  align-items: center;
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  color: var(--text-2);
+  border-radius: 999px;
+  padding: 8px 13px;
+  font: 700 13px var(--font-display);
+  min-width: 64px;
+  justify-content: center;
+}
+
+.coach-note.in-box {
+  background: var(--green-soft);
+  border-color: rgba(52, 211, 153, 0.5);
+  color: var(--green);
+}
+
+.coach-reset {
+  background: none;
+  border: none;
+  color: var(--text-2);
+  font: 600 12px var(--font-body);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

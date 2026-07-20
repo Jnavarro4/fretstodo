@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   DIATONIC_IDS,
   INTERVALS,
+  NOTES,
   randomExercise,
   type DirectionMode,
   type Exercise,
@@ -10,6 +11,7 @@ import {
 import { useI18n } from '../i18n/I18nContext';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useWakeLock } from '../hooks/useWakeLock';
+import { playSequence } from '../utils/audio';
 import { Segmented } from '../components/Segmented';
 import { Stepper } from '../components/Stepper';
 import { Switch } from '../components/Switch';
@@ -25,6 +27,7 @@ interface TrainScreenProps {
 }
 
 type TrainerId = 'hub' | 'intervals' | 'penta';
+type Phase = 'question' | 'answer';
 
 interface TrainSettings {
   enabled: IntervalId[];
@@ -34,9 +37,18 @@ interface TrainSettings {
   autoSecs: number;
 }
 
-const ALL_IDS = INTERVALS.map((i) => i.id);
+/** Valoraciones fácil/difícil por intervalo (estilo flashcards). */
+type Ratings = Partial<Record<IntervalId, { easy: number; hard: number }>>;
 
-export function TrainScreen({ onExercise, onPentaDrill, onSessionEnd, autoStartIntervals }: TrainScreenProps) {
+const ALL_IDS = INTERVALS.map((i) => i.id);
+const ANSWER_AUTO_MS = 3000;
+
+export function TrainScreen({
+  onExercise,
+  onPentaDrill,
+  onSessionEnd,
+  autoStartIntervals,
+}: TrainScreenProps) {
   const { t } = useI18n();
   const [trainer, setTrainer] = useState<TrainerId>('hub');
 
@@ -47,11 +59,12 @@ export function TrainScreen({ onExercise, onPentaDrill, onSessionEnd, autoStartI
     auto: false,
     autoSecs: 8,
   });
+  const [ratings, setRatings] = useLocalStorage<Ratings>('fretstodo.ratings', {});
 
   const [exercise, setExercise] = useState<Exercise | null>(null);
+  const [phase, setPhase] = useState<Phase>('question');
   const [count, setCount] = useState(0);
   const [elapsed, setElapsed] = useState(0);
-  const [revealed, setRevealed] = useState(false);
   const [autoKey, setAutoKey] = useState(0);
 
   const startRef = useRef<number | null>(null);
@@ -71,24 +84,59 @@ export function TrainScreen({ onExercise, onPentaDrill, onSessionEnd, autoStartI
         : [...settings.enabled, id],
     });
 
-  const next = useCallback(() => {
+  /** Peso por intervalo: los valorados como difíciles salen más seguido. */
+  const weights = useCallback((): Partial<Record<IntervalId, number>> => {
+    const w: Partial<Record<IntervalId, number>> = {};
+    for (const iv of INTERVALS) {
+      const r = ratings[iv.id];
+      if (r) w[iv.id] = 1 + r.hard - 0.5 * r.easy;
+    }
+    return w;
+  }, [ratings]);
+
+  const genNext = useCallback(() => {
     setExercise((prev) => {
       const pool = settings.enabled.length > 0 ? settings.enabled : ALL_IDS;
-      const ex = randomExercise(pool, settings.dir, prev);
+      const ex = randomExercise(pool, settings.dir, prev, weights());
       if (!ex) return prev;
       setCount((c) => c + 1);
-      setRevealed(false);
+      setPhase('question');
       setAutoKey((k) => k + 1);
       onExercise(ex.interval.id);
       return ex;
     });
-  }, [settings.enabled, settings.dir, onExercise]);
+  }, [settings.enabled, settings.dir, weights, onExercise]);
+
+  const reveal = useCallback(() => {
+    setPhase('answer');
+    setAutoKey((k) => k + 1);
+  }, []);
+
+  /** Valoración estilo Anki (o null si se salta) → siguiente ejercicio. */
+  const advance = useCallback(
+    (rating: 'easy' | 'hard' | null) => {
+      if (rating && exercise) {
+        const id = exercise.interval.id;
+        setRatings((prev) => {
+          const r = prev[id] ?? { easy: 0, hard: 0 };
+          return { ...prev, [id]: { ...r, [rating]: r[rating] + 1 } };
+        });
+      }
+      genNext();
+    },
+    [exercise, setRatings, genNext],
+  );
+
+  const primaryAction = useCallback(() => {
+    if (phase === 'question') reveal();
+    else advance(null);
+  }, [phase, reveal, advance]);
 
   const start = () => {
     startRef.current = Date.now();
     setCount(0);
     setElapsed(0);
-    next();
+    genNext();
   };
 
   const end = useCallback(() => {
@@ -97,6 +145,7 @@ export function TrainScreen({ onExercise, onPentaDrill, onSessionEnd, autoStartI
     }
     startRef.current = null;
     setExercise(null);
+    setPhase('question');
   }, [onSessionEnd]);
 
   /** Al desmontar (cambio de tab) la sesión se cierra y suma sus minutos. */
@@ -121,25 +170,38 @@ export function TrainScreen({ onExercise, onPentaDrill, onSessionEnd, autoStartI
     return () => clearInterval(id);
   }, [inSession]);
 
+  /** Auto-avance: revela el resultado al cumplirse el tiempo y avanza después. */
   useEffect(() => {
     if (!inSession || !settings.auto) return;
-    autoTimerRef.current = setTimeout(next, settings.autoSecs * 1000);
+    const ms = phase === 'question' ? settings.autoSecs * 1000 : ANSWER_AUTO_MS;
+    autoTimerRef.current = setTimeout(() => {
+      if (phase === 'question') reveal();
+      else advance(null);
+    }, ms);
     return () => {
       if (autoTimerRef.current) clearTimeout(autoTimerRef.current);
     };
-  }, [autoKey, inSession, settings.auto, settings.autoSecs, next]);
+  }, [autoKey, inSession, settings.auto, settings.autoSecs, phase, reveal, advance]);
 
   useEffect(() => {
     if (!inSession) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
         e.preventDefault();
-        next();
+        primaryAction();
       }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [inSession, next]);
+  }, [inSession, primaryAction]);
+
+  const hearExample = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!exercise) return;
+    const rootMidi = 48 + NOTES.indexOf(exercise.root);
+    const delta = exercise.dir === 'asc' ? exercise.interval.semitones : -exercise.interval.semitones;
+    playSequence([rootMidi, rootMidi + delta], 600, 550);
+  };
 
   const timerLabel = `${String(Math.floor(elapsed / 60)).padStart(2, '0')}:${String(elapsed % 60).padStart(2, '0')}`;
 
@@ -289,14 +351,13 @@ export function TrainScreen({ onExercise, onPentaDrill, onSessionEnd, autoStartI
         </div>
       </div>
 
-      <div className="stage" role="button" aria-label={t.next} onClick={next}>
+      <div className="stage" role="button" aria-label={t.next} onClick={primaryAction}>
         <div className="strings">
           <i /><i /><i /><i /><i /><i />
         </div>
         {settings.showRoot && (
           <div style={{ textAlign: 'center' }}>
             <div className="field-label">{t.lbl_note}</div>
-            {/* key fuerza re-montaje → re-dispara la animación pop */}
             <div className="root-note" key={`r${count}`}>
               {exercise.root}
             </div>
@@ -309,23 +370,26 @@ export function TrainScreen({ onExercise, onPentaDrill, onSessionEnd, autoStartI
           </div>
         </div>
         <div className="direction-tag">{t[exercise.dir]}</div>
+
+        {/* Fase resultado: respuesta grande + escuchar el intervalo */}
         <div className="answer">
-          {settings.showRoot &&
-            (revealed ? (
-              <span className="target">
-                {exercise.root} → {exercise.target}
-              </span>
-            ) : (
-              <button
-                className="reveal"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setRevealed(true);
-                }}
-              >
-                {t.show_answer}
+          {phase === 'answer' && (
+            <div className="answer-block" key={`a${count}`}>
+              {settings.showRoot && (
+                <span className="target">
+                  {exercise.root} → {exercise.target}
+                </span>
+              )}
+              <button className="hear-btn" onClick={hearExample}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 5 6 9 H3 v6 h3 l5 4 z" />
+                  <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+                  <path d="M18.5 5.5a9.5 9.5 0 0 1 0 13" />
+                </svg>
+                {t.hear}
               </button>
-            ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -335,16 +399,27 @@ export function TrainScreen({ onExercise, onPentaDrill, onSessionEnd, autoStartI
             key={autoKey}
             className="autobar"
             style={{
-              animation: `autofill ${settings.autoSecs}s linear forwards`,
+              animation: `autofill ${phase === 'question' ? settings.autoSecs : ANSWER_AUTO_MS / 1000}s linear forwards`,
             }}
           />
           <style>{`@keyframes autofill { from { width: 0 } to { width: 100% } }`}</style>
         </div>
       )}
 
-      <button className="next-btn" onClick={next}>
-        {t.next}
-      </button>
+      {phase === 'question' ? (
+        <button className="next-btn" onClick={reveal}>
+          {t.show_result}
+        </button>
+      ) : (
+        <div className="rate-row">
+          <button className="rate-btn rate-hard" onClick={() => advance('hard')}>
+            {t.rate_hard}
+          </button>
+          <button className="rate-btn rate-easy" onClick={() => advance('easy')}>
+            {t.rate_easy}
+          </button>
+        </div>
+      )}
       <p className="tap-hint">{t.tap_hint}</p>
     </section>
   );

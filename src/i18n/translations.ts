@@ -106,6 +106,12 @@ export interface Dictionary {
   coach_listen_sub: string;
   coach_denied: string;
   coach_complete: string;
+  show_result: string;
+  rate_hard: string;
+  rate_easy: string;
+  hear: string;
+  time_done: string;
+  reset_label: string;
 }
 
 export const translations: Record<Lang, Dictionary> = {
@@ -215,6 +221,12 @@ export const translations: Record<Lang, Dictionary> = {
     coach_listen_sub: 'La app escucha con el micrófono y marca en verde cada nota que tocás',
     coach_denied: 'Sin permiso de micrófono',
     coach_complete: '¡Posición completa!',
+    show_result: 'Mostrar resultado',
+    rate_hard: 'Difícil',
+    rate_easy: 'Fácil',
+    hear: 'Escuchar',
+    time_done: 'Tiempo cumplido',
+    reset_label: 'Reiniciar',
   },
   en: {
     tab_today: 'Today',
@@ -322,5 +334,11 @@ export const translations: Record<Lang, Dictionary> = {
     coach_listen_sub: 'The app listens with the mic and turns each note you play green',
     coach_denied: 'No microphone permission',
     coach_complete: 'Position complete!',
+    show_result: 'Show result',
+    rate_hard: 'Hard',
+    rate_easy: 'Easy',
+    hear: 'Hear it',
+    time_done: 'Time complete',
+    reset_label: 'Reset',
   },
 };

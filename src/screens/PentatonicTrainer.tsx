@@ -12,6 +12,7 @@ import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { usePitch } from '../hooks/usePitch';
 import { playChime } from '../utils/chime';
+import { NOTES } from '../engine/intervalEngine';
 import { Segmented } from '../components/Segmented';
 import { FretboardDiagram } from '../components/FretboardDiagram';
 
@@ -28,8 +29,6 @@ interface PentaSettings {
   coach: boolean;
 }
 
-const COMPLETE_NEXT_DELAY_MS = 1400;
-
 export function PentatonicTrainer({ onDrill, onSessionEnd, onBack }: PentatonicTrainerProps) {
   const { t } = useI18n();
 
@@ -45,7 +44,6 @@ export function PentatonicTrainer({ onDrill, onSessionEnd, onBack }: PentatonicT
   const [played, setPlayed] = useState<Set<number>>(new Set());
   const [complete, setComplete] = useState(false);
   const startRef = useRef<number | null>(null);
-  const completeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inSession = drill !== null;
 
   useWakeLock(inSession);
@@ -63,9 +61,14 @@ export function PentatonicTrainer({ onDrill, onSessionEnd, onBack }: PentatonicT
   /** Nota sonando que pertenece a la caja actual. */
   const activeMidi = pitch && boxMidis.has(pitch.midi) ? pitch.midi : null;
 
+  /** Nombre legible de lo que suena ahora (esté o no en la caja). */
+  const liveNote = pitch
+    ? `${NOTES[((pitch.midi % 12) + 12) % 12]}${Math.floor(pitch.midi / 12) - 1}`
+    : null;
+
   /* Nota detectada dentro de la caja → marcarla como tocada */
   useEffect(() => {
-    if (activeMidi === null || complete) return;
+    if (activeMidi === null) return;
     setPlayed((prev) => {
       if (prev.has(activeMidi)) return prev;
       const next = new Set(prev);
@@ -74,22 +77,15 @@ export function PentatonicTrainer({ onDrill, onSessionEnd, onBack }: PentatonicT
     });
   }, [activeMidi, complete]);
 
-  /* Caja completa → celebrar y avanzar solo */
+  /* Caja completa → celebrar, pero se sigue tocando ilimitado (sin auto-avance) */
   useEffect(() => {
     if (!inSession || !box || complete) return;
     if (boxMidis.size > 0 && played.size >= boxMidis.size) {
       setComplete(true);
       playChime();
-      completeTimerRef.current = setTimeout(() => next(), COMPLETE_NEXT_DELAY_MS);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [played, boxMidis, inSession, complete]);
-
-  useEffect(() => {
-    return () => {
-      if (completeTimerRef.current) clearTimeout(completeTimerRef.current);
-    };
-  }, []);
 
   const togglePosition = (pos: Position) =>
     setSettings((prev) => ({
@@ -102,7 +98,6 @@ export function PentatonicTrainer({ onDrill, onSessionEnd, onBack }: PentatonicT
   const toggleCoach = () => setSettings((prev) => ({ ...prev, coach: !(prev.coach ?? false) }));
 
   const next = useCallback(() => {
-    if (completeTimerRef.current) clearTimeout(completeTimerRef.current);
     setPlayed(new Set());
     setComplete(false);
     setDrill((prev) => {
@@ -273,6 +268,9 @@ export function PentatonicTrainer({ onDrill, onSessionEnd, onBack }: PentatonicT
             </svg>
             {t.coach_listen}
           </button>
+          {settings.coach && micState === 'listening' && liveNote && (
+            <span className={`coach-note${activeMidi !== null ? ' in-box' : ''}`}>♪ {liveNote}</span>
+          )}
           {settings.coach && micState === 'listening' && !complete && (
             <span className="coach-progress">
               {played.size}/{boxMidis.size}
@@ -282,6 +280,17 @@ export function PentatonicTrainer({ onDrill, onSessionEnd, onBack }: PentatonicT
             <span className="coach-denied">{t.coach_denied}</span>
           )}
           {complete && <span className="coach-complete">✓ {t.coach_complete}</span>}
+          {complete && (
+            <button
+              className="coach-reset"
+              onClick={() => {
+                setPlayed(new Set());
+                setComplete(false);
+              }}
+            >
+              {t.reset_label}
+            </button>
+          )}
         </div>
       </div>
 

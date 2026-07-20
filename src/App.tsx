@@ -53,8 +53,10 @@ export default function App() {
      podés iniciar "Intervalos 10 min", irte a Entrenar y el tiempo sigue. */
   const [timer, setTimer] = useLocalStorage<RunningTimer | null>('fretstodo.timer', null);
   const [now, setNow] = useState(Date.now());
+  /** Título de la última tarea cuyo tiempo se cumplió (pastilla verde). */
+  const [finishedTitle, setFinishedTitle] = useState<string | null>(null);
 
-  useWakeLock(timer !== null);
+  useWakeLock(timer !== null && timer.endsAt !== null);
 
   /** Nuevo día → rutina nueva (y cualquier temporizador viejo se descarta). */
   if (daily.date !== todayKey()) {
@@ -83,36 +85,60 @@ export default function App() {
 
   const startTimer = useCallback(
     (todo: Todo) => {
-      if (!todo.minutes) return;
-      const totalSecs = todo.minutes * 60;
+      setFinishedTitle(null);
       setNow(Date.now());
-      setTimer({ todoId: todo.id, endsAt: Date.now() + totalSecs * 1000, totalSecs });
+      setTimer((prev) => {
+        /* Reanudar si esa tarea estaba en pausa; si no, arrancar completa. */
+        if (prev && prev.todoId === todo.id && prev.remainingSecs !== null) {
+          return { ...prev, endsAt: Date.now() + prev.remainingSecs * 1000, remainingSecs: null };
+        }
+        if (!todo.minutes) return prev;
+        const totalSecs = todo.minutes * 60;
+        return { todoId: todo.id, totalSecs, endsAt: Date.now() + totalSecs * 1000, remainingSecs: null };
+      });
       /* El play también te lleva a lo que hay que hacer. */
       if (todo.link) setTab(todo.link as Tab, true);
     },
     [setTimer, setTab],
   );
 
-  const stopTimer = useCallback(() => setTimer(null), [setTimer]);
+  /** Pausa: guarda el tiempo restante para retomar después. */
+  const pauseTimer = useCallback(() => {
+    setTimer((prev) => {
+      if (!prev || prev.endsAt === null) return prev;
+      const remainingSecs = Math.max(1, Math.ceil((prev.endsAt - Date.now()) / 1000));
+      return { ...prev, endsAt: null, remainingSecs };
+    });
+  }, [setTimer]);
+
+  /** Al marcar una tarea como hecha, su temporizador (corriendo o en pausa) se descarta. */
+  const clearTimerFor = useCallback(
+    (todoId: string) => {
+      setTimer((prev) => (prev && prev.todoId === todoId ? null : prev));
+    },
+    [setTimer],
+  );
 
   /** Tick + finalización: funciona en cualquier tab y tras recargar la página. */
   useEffect(() => {
-    if (!timer) return;
+    if (!timer || timer.endsAt === null) return;
+    const endsAt = timer.endsAt;
     const finish = () => {
       playChime();
       setDaily((prev) => ({
         ...prev,
         todos: prev.todos.map((td) => (td.id === timer.todoId ? { ...td, done: true } : td)),
       }));
+      setFinishedTitle(timer.todoId);
       setTimer(null);
     };
-    if (Date.now() >= timer.endsAt) {
+    if (Date.now() >= endsAt) {
       finish();
       return;
     }
     const id = setInterval(() => {
       setNow(Date.now());
-      if (Date.now() >= timer.endsAt) finish();
+      if (Date.now() >= endsAt) finish();
     }, 500);
     return () => clearInterval(id);
   }, [timer, setDaily, setTimer]);
@@ -163,16 +189,22 @@ export default function App() {
   );
 
   /* Pastilla flotante del temporizador cuando no estás en Hoy */
-  const timerRemaining = timer ? Math.max(0, Math.ceil((timer.endsAt - now) / 1000)) : 0;
-  const timerLabel = `${String(Math.floor(timerRemaining / 60)).padStart(2, '0')}:${String(timerRemaining % 60).padStart(2, '0')}`;
-  const timerTodo = timer ? daily.todos.find((td) => td.id === timer.todoId) : undefined;
-  const timerTitle = (() => {
-    if (!timerTodo) return '';
-    if (timerTodo.custom || timerTodo.defaultIndex === undefined) return timerTodo.title;
-    return translations[lang].default_todos[timerTodo.defaultIndex]?.title ?? timerTodo.title;
-  })();
+  const timerRunning = timer !== null && timer.endsAt !== null;
+  const timerRemaining = timerRunning ? Math.max(0, Math.ceil(((timer as RunningTimer).endsAt as number) - now) / 1000) : 0;
+  const timerRemainingSecs = timerRunning
+    ? Math.max(0, Math.ceil((((timer as RunningTimer).endsAt as number) - now) / 1000))
+    : 0;
+  const timerLabel = `${String(Math.floor(timerRemainingSecs / 60)).padStart(2, '0')}:${String(timerRemainingSecs % 60).padStart(2, '0')}`;
+  const todoTitle = (td: Todo | undefined): string => {
+    if (!td) return '';
+    if (td.custom || td.defaultIndex === undefined) return td.title;
+    return translations[lang].default_todos[td.defaultIndex]?.title ?? td.title;
+  };
+  const timerTitle = todoTitle(daily.todos.find((td) => td.id === timer?.todoId));
+  const finishedTodoTitle = todoTitle(daily.todos.find((td) => td.id === finishedTitle));
 
-  const showPill = timer !== null && tab !== 'today';
+  const showPill = tab !== 'today' && (timerRunning || finishedTitle !== null);
+  void timerRemaining;
 
   return (
     <div className={`app${showPill ? ' has-pill' : ''}`}>
@@ -216,7 +248,8 @@ export default function App() {
             timer={timer}
             now={now}
             onStartTimer={startTimer}
-            onStopTimer={stopTimer}
+            onPauseTimer={pauseTimer}
+            onClearTimer={clearTimerFor}
           />
         )}
         {tab === 'train' && (
@@ -232,11 +265,16 @@ export default function App() {
         {tab === 'progress' && <ProgressScreen stats={stats} />}
       </main>
 
-      {showPill && (
+      {showPill && timerRunning && (
         <button className="timer-pill" onClick={() => setTab('today')}>
           <span className="timer-pill-dot" />
           <span className="timer-pill-title">{timerTitle}</span>
           <span className="timer-pill-time">{timerLabel}</span>
+        </button>
+      )}
+      {showPill && !timerRunning && finishedTitle !== null && (
+        <button className="timer-pill finished" onClick={() => setFinishedTitle(null)}>
+          <span className="timer-pill-title">✓ {t.time_done}{finishedTodoTitle ? ` · ${finishedTodoTitle}` : ''}</span>
         </button>
       )}
 

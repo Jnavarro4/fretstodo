@@ -15,7 +15,8 @@ interface TodayScreenProps {
   timer: RunningTimer | null;
   now: number;
   onStartTimer: (todo: Todo) => void;
-  onStopTimer: () => void;
+  onPauseTimer: () => void;
+  onClearTimer: (todoId: string) => void;
 }
 
 export function TodayScreen({
@@ -26,7 +27,8 @@ export function TodayScreen({
   timer,
   now,
   onStartTimer,
-  onStopTimer,
+  onPauseTimer,
+  onClearTimer,
 }: TodayScreenProps) {
   const { lang, t } = useI18n();
   const [draft, setDraft] = useState('');
@@ -43,6 +45,9 @@ export function TodayScreen({
   const dateLabel = rawDate.charAt(0).toUpperCase() + rawDate.slice(1);
 
   const toggle = (id: string) => {
+    /* Marcar como hecha descarta su temporizador (corriendo o en pausa). */
+    const target = todos.find((td) => td.id === id);
+    if (target && !target.done && timer?.todoId === id) onClearTimer(id);
     setTodos((prev) => prev.map((td) => (td.id === id ? { ...td, done: !td.done } : td)));
   };
 
@@ -94,10 +99,18 @@ export function TodayScreen({
       <div className="todo-list">
         {todos.map((td) => {
           const { title, sub } = localized(td);
-          const isRunning = timer?.todoId === td.id;
-          const remaining = isRunning ? Math.max(0, Math.ceil((timer.endsAt - now) / 1000)) : 0;
+          const isRunning = timer?.todoId === td.id && timer.endsAt !== null;
+          const isPaused = timer?.todoId === td.id && timer.remainingSecs !== null;
+          const remaining = isRunning
+            ? Math.max(0, Math.ceil(((timer.endsAt as number) - now) / 1000))
+            : isPaused
+              ? (timer.remainingSecs as number)
+              : 0;
           const remainingLabel = `${String(Math.floor(remaining / 60)).padStart(2, '0')}:${String(remaining % 60).padStart(2, '0')}`;
-          const elapsedPct = isRunning ? ((timer.totalSecs - remaining) / timer.totalSecs) * 100 : 0;
+          const elapsedPct =
+            (isRunning || isPaused) && timer
+              ? ((timer.totalSecs - remaining) / timer.totalSecs) * 100
+              : 0;
           return (
             <div
               key={td.id}
@@ -119,7 +132,7 @@ export function TodayScreen({
                   <div className="todo-title">{title}</div>
                   {sub && <div className="todo-sub">{sub}</div>}
                 </div>
-                {!td.done && !isRunning && (
+                {!td.done && !isRunning && !isPaused && (
                   <button
                     className="todo-chip"
                     aria-label={t.min_chip(td.minutes ?? 0)}
@@ -128,6 +141,7 @@ export function TodayScreen({
                     {t.min_chip(td.minutes ?? 0)}
                   </button>
                 )}
+                {!td.done && isPaused && <span className="todo-chip paused">{remainingLabel}</span>}
                 {!td.done && !isRunning && td.minutes !== undefined && td.minutes > 0 && (
                   <button className="todo-play" aria-label="play" onClick={() => onStartTimer(td)}>
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
@@ -136,10 +150,11 @@ export function TodayScreen({
                   </button>
                 )}
                 {isRunning && (
-                  <button className="todo-timer" onClick={onStopTimer}>
+                  <button className="todo-timer" onClick={onPauseTimer} aria-label="pause">
                     {remainingLabel}
                     <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-                      <rect x="1" y="1" width="8" height="8" rx="1.5" />
+                      <rect x="1.5" y="1" width="2.6" height="8" rx="1" />
+                      <rect x="5.9" y="1" width="2.6" height="8" rx="1" />
                     </svg>
                   </button>
                 )}
@@ -149,7 +164,7 @@ export function TodayScreen({
                   </button>
                 )}
               </div>
-              {isRunning && (
+              {(isRunning || isPaused) && (
                 <div className="todo-progress">
                   <i style={{ width: `${elapsedPct}%` }} />
                 </div>

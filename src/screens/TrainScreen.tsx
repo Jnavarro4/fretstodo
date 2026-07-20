@@ -13,11 +13,16 @@ import { useWakeLock } from '../hooks/useWakeLock';
 import { Segmented } from '../components/Segmented';
 import { Stepper } from '../components/Stepper';
 import { Switch } from '../components/Switch';
+import { PentatonicTrainer } from './PentatonicTrainer';
+import type { Position } from '../engine/pentatonicEngine';
 
 interface TrainScreenProps {
-  onExercise: () => void;
+  onExercise: (intervalId: IntervalId) => void;
+  onPentaDrill: (position: Position) => void;
   onSessionEnd: (seconds: number) => void;
 }
+
+type TrainerId = 'hub' | 'intervals' | 'penta';
 
 interface TrainSettings {
   enabled: IntervalId[];
@@ -29,8 +34,9 @@ interface TrainSettings {
 
 const ALL_IDS = INTERVALS.map((i) => i.id);
 
-export function TrainScreen({ onExercise, onSessionEnd }: TrainScreenProps) {
+export function TrainScreen({ onExercise, onPentaDrill, onSessionEnd }: TrainScreenProps) {
   const { t } = useI18n();
+  const [trainer, setTrainer] = useState<TrainerId>('hub');
 
   const [settings, setSettings] = useLocalStorage<TrainSettings>('fretstodo.train', {
     enabled: ALL_IDS,
@@ -70,7 +76,7 @@ export function TrainScreen({ onExercise, onSessionEnd }: TrainScreenProps) {
       setCount((c) => c + 1);
       setRevealed(false);
       setAutoKey((k) => k + 1);
-      onExercise();
+      onExercise(ex.interval.id);
       return ex;
     });
   }, [settings.enabled, settings.dir, onExercise]);
@@ -125,9 +131,66 @@ export function TrainScreen({ onExercise, onSessionEnd }: TrainScreenProps) {
 
   const timerLabel = `${String(Math.floor(elapsed / 60)).padStart(2, '0')}:${String(elapsed % 60).padStart(2, '0')}`;
 
+  if (trainer === 'penta') {
+    return (
+      <PentatonicTrainer
+        onDrill={onPentaDrill}
+        onSessionEnd={onSessionEnd}
+        onBack={() => setTrainer('hub')}
+      />
+    );
+  }
+
+  if (trainer === 'hub') {
+    return (
+      <section className="screen">
+        <div className="eyebrow">{t.hub_pick}</div>
+        <div className="hub-list">
+          <button className="hub-card" onClick={() => setTrainer('intervals')}>
+            <div className="hub-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                <line x1="4" y1="7" x2="20" y2="7" />
+                <line x1="4" y1="12" x2="20" y2="12" />
+                <line x1="4" y1="17" x2="20" y2="17" />
+                <circle cx="9" cy="7" r="2.2" fill="currentColor" stroke="none" />
+                <circle cx="15" cy="17" r="2.2" fill="currentColor" stroke="none" />
+              </svg>
+            </div>
+            <div className="hub-body">
+              <div className="hub-title">{t.cfg_intervals}</div>
+              <div className="hub-sub">{t.hub_intervals_sub}</div>
+            </div>
+            <span className="hub-arrow">→</span>
+          </button>
+          <button className="hub-card" onClick={() => setTrainer('penta')}>
+            <div className="hub-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                <circle cx="6" cy="6" r="2.2" fill="currentColor" stroke="none" />
+                <circle cx="18" cy="6" r="2.2" fill="currentColor" stroke="none" />
+                <circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none" />
+                <circle cx="6" cy="18" r="2.2" fill="currentColor" stroke="none" />
+                <circle cx="18" cy="18" r="2.2" fill="currentColor" stroke="none" />
+              </svg>
+            </div>
+            <div className="hub-body">
+              <div className="hub-title">{t.hub_penta}</div>
+              <div className="hub-sub">{t.hub_penta_sub}</div>
+            </div>
+            <span className="hub-arrow">→</span>
+          </button>
+        </div>
+      </section>
+    );
+  }
+
   if (!inSession) {
     return (
       <section className="screen">
+        <div className="practice-top">
+          <button className="icon-btn" onClick={() => setTrainer('hub')}>
+            {t.back}
+          </button>
+        </div>
         <div className="eyebrow">{t.cfg_intervals}</div>
         <div className="chips">
           {INTERVALS.map((iv) => (

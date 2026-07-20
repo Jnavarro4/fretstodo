@@ -4,8 +4,11 @@ import { translations } from './i18n/translations';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { TodayScreen } from './screens/TodayScreen';
 import { TrainScreen } from './screens/TrainScreen';
-import { MetronomeScreen } from './screens/MetronomeScreen';
-import type { DailyState, Tab, Todo } from './types';
+import { ToolsScreen } from './screens/ToolsScreen';
+import { ProgressScreen } from './screens/ProgressScreen';
+import { EMPTY_STATS, type DailyState, type SkillStats, type Tab, type Todo } from './types';
+import type { IntervalId } from './engine/intervalEngine';
+import type { Position } from './engine/pentatonicEngine';
 
 function todayKey(): string {
   return new Date().toISOString().slice(0, 10);
@@ -20,15 +23,28 @@ function freshDaily(lang: 'es' | 'en'): DailyState {
     done: false,
     custom: false,
     defaultIndex: i,
+    minutes: d.minutes,
   }));
   return { date: todayKey(), todos, totals: { exercises: 0, seconds: 0 } };
 }
 
 export default function App() {
   const { lang, t, setLang } = useI18n();
-  const [tab, setTab] = useState<Tab>('today');
+  const [tab, setTabState] = useState<Tab>('today');
+  const [toolsInitial, setToolsInitial] = useState<'hub' | 'metro'>('hub');
+  const [toolsKey, setToolsKey] = useState(0);
+
+  /** goTab desde la rutina ('metro') abre el metrónomo directo; el tab abre el hub. */
+  const setTab = (next: Tab, direct = false) => {
+    if (next === 'metro') {
+      setToolsInitial(direct ? 'metro' : 'hub');
+      setToolsKey((k) => k + 1);
+    }
+    setTabState(next);
+  };
 
   const [daily, setDaily] = useLocalStorage<DailyState>('fretstodo.daily', () => freshDaily(lang));
+  const [stats, setStats] = useLocalStorage<SkillStats>('fretstodo.stats', EMPTY_STATS);
 
   /** Nuevo día → rutina nueva. Se evalúa en cada render sin efecto adicional. */
   if (daily.date !== todayKey()) {
@@ -42,21 +58,48 @@ export default function App() {
   );
 
   const onExercise = useCallback(
-    () =>
+    (intervalId: IntervalId) => {
       setDaily((prev) => ({
         ...prev,
         totals: { ...prev.totals, exercises: prev.totals.exercises + 1 },
-      })),
-    [setDaily],
+      }));
+      setStats((prev) => ({
+        ...prev,
+        exercises: prev.exercises + 1,
+        intervals: { ...prev.intervals, [intervalId]: (prev.intervals[intervalId] ?? 0) + 1 },
+      }));
+    },
+    [setDaily, setStats],
+  );
+
+  const onPentaDrill = useCallback(
+    (position: Position) => {
+      setDaily((prev) => ({
+        ...prev,
+        totals: { ...prev.totals, exercises: prev.totals.exercises + 1 },
+      }));
+      setStats((prev) => ({
+        ...prev,
+        exercises: prev.exercises + 1,
+        penta: { ...prev.penta, [String(position)]: (prev.penta[String(position)] ?? 0) + 1 },
+      }));
+    },
+    [setDaily, setStats],
   );
 
   const onSessionEnd = useCallback(
-    (seconds: number) =>
+    (seconds: number) => {
       setDaily((prev) => ({
         ...prev,
         totals: { ...prev.totals, seconds: prev.totals.seconds + seconds },
-      })),
-    [setDaily],
+      }));
+      setStats((prev) => ({
+        ...prev,
+        sessions: prev.sessions + 1,
+        seconds: prev.seconds + seconds,
+      }));
+    },
+    [setDaily, setStats],
   );
 
   return (
@@ -93,10 +136,13 @@ export default function App() {
 
       <main className="app-main">
         {tab === 'today' && (
-          <TodayScreen todos={daily.todos} setTodos={setTodos} totals={daily.totals} goTab={setTab} />
+          <TodayScreen todos={daily.todos} setTodos={setTodos} totals={daily.totals} goTab={(tb) => setTab(tb, true)} />
         )}
-        {tab === 'train' && <TrainScreen onExercise={onExercise} onSessionEnd={onSessionEnd} />}
-        {tab === 'metro' && <MetronomeScreen />}
+        {tab === 'train' && (
+          <TrainScreen onExercise={onExercise} onPentaDrill={onPentaDrill} onSessionEnd={onSessionEnd} />
+        )}
+        {tab === 'metro' && <ToolsScreen initial={toolsInitial} key={toolsKey} />}
+        {tab === 'progress' && <ProgressScreen stats={stats} />}
       </main>
 
       <nav className="tabbar">
@@ -133,7 +179,18 @@ export default function App() {
               <path d="M8 20 L10 5 H14 L16 20 Z" />
               <line x1="12" y1="16" x2="16.5" y2="7" />
             </svg>
-            <span>{t.tab_metro}</span>
+            <span>{t.tab_tools}</span>
+          </button>
+          <button
+            className={`tab${tab === 'progress' ? ' active' : ''}`}
+            onClick={() => setTab('progress')}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+              <line x1="5" y1="20" x2="5" y2="12" />
+              <line x1="12" y1="20" x2="12" y2="6" />
+              <line x1="19" y1="20" x2="19" y2="15" />
+            </svg>
+            <span>{t.tab_progress}</span>
           </button>
         </div>
       </nav>

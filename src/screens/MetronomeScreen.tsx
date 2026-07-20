@@ -1,17 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
-import { bpmFromTaps, Metronome } from '../engine/metronome';
+import { bpmFromTaps, Metronome, type SoundPreset } from '../engine/metronome';
 import { useI18n } from '../i18n/I18nContext';
 import { Switch } from '../components/Switch';
 import { useWakeLock } from '../hooks/useWakeLock';
 
 const TIME_SIGS = ['2/4', '3/4', '4/4', '5/4', '6/8', '7/8', '9/8', '12/8'];
 
-export function MetronomeScreen() {
+interface MetronomeScreenProps {
+  onBack?: () => void;
+}
+
+export function MetronomeScreen({ onBack }: MetronomeScreenProps) {
   const { t } = useI18n();
 
   const [bpm, setBpm] = useState(100);
   const [tsLabel, setTsLabel] = useState('4/4');
   const [subdivision, setSubdivision] = useState(1);
+  const [sound, setSound] = useState<SoundPreset>('click');
   const [gap, setGap] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [activeBeat, setActiveBeat] = useState<number | null>(null);
@@ -72,6 +77,11 @@ export function MetronomeScreen() {
     metro.subdivision = value;
   };
 
+  const changeSound = (value: SoundPreset) => {
+    setSound(value);
+    metro.sound = value;
+  };
+
   const toggleGap = () => {
     const next = !gap;
     setGap(next);
@@ -90,6 +100,13 @@ export function MetronomeScreen() {
 
   return (
     <section className="screen">
+      {onBack && (
+        <div className="practice-top">
+          <button className="icon-btn" onClick={onBack}>
+            {t.back}
+          </button>
+        </div>
+      )}
       <div className="tempo-card">
         <div className="bpm">{bpm}</div>
         <div className="bpm-lbl">BPM</div>
@@ -135,6 +152,15 @@ export function MetronomeScreen() {
             <option value={2}>{t.sub_2}</option>
             <option value={3}>{t.sub_3}</option>
             <option value={4}>{t.sub_4}</option>
+          </select>
+        </div>
+        <div className="select-card full">
+          <label htmlFor="snd">{t.sound}</label>
+          <select id="snd" value={sound} onChange={(e) => changeSound(e.target.value as SoundPreset)}>
+            <option value="click">{t.sound_click}</option>
+            <option value="wood">{t.sound_wood}</option>
+            <option value="cowbell">{t.sound_cowbell}</option>
+            <option value="beep">{t.sound_beep}</option>
           </select>
         </div>
       </div>

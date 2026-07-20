@@ -406,14 +406,21 @@ input:focus-visible {
 }
 
 .todo {
-  display: flex;
-  align-items: center;
-  gap: 13px;
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 14px;
-  transition: opacity 0.2s;
+  transition: opacity 0.2s, border-color 0.2s;
+}
+
+.todo.running {
+  border-color: rgba(251, 106, 26, 0.5);
+}
+
+.todo-main {
+  display: flex;
+  align-items: center;
+  gap: 11px;
 }
 
 .todo.done {
@@ -915,4 +922,304 @@ input:focus-visible {
   color: var(--tiger);
   border-color: var(--tiger);
   box-shadow: none;
+}
+
+/* ---------- Hub de entrenadores ---------- */
+.hub-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hub-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px 16px;
+  color: var(--text);
+  text-align: left;
+  transition: border-color 0.15s ease;
+}
+
+.hub-card:active {
+  border-color: var(--tiger);
+}
+
+.hub-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--tiger-soft);
+  color: var(--tiger);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.hub-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.hub-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.hub-title {
+  font: 700 15px var(--font-display);
+}
+
+.hub-sub {
+  font-size: 12px;
+  color: var(--text-2);
+  margin-top: 2px;
+}
+
+.hub-arrow {
+  color: var(--tiger);
+  font: 700 18px var(--font-display);
+}
+
+/* ---------- Progreso: barras por habilidad ---------- */
+.skill-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+
+.skill-row {
+  display: grid;
+  grid-template-columns: 92px 1fr 34px;
+  align-items: center;
+  gap: 10px;
+}
+
+.skill-name {
+  font-size: 12px;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.skill-bar {
+  height: 8px;
+  border-radius: 99px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.skill-bar i {
+  display: block;
+  height: 100%;
+  background: var(--tiger); /* barras Orange Tiger */
+  border-radius: 99px;
+  transition: width 0.35s ease;
+}
+
+.skill-count {
+  /* números en blanco, nunca naranja (regla de marca) */
+  font: 600 13px var(--font-display);
+  color: var(--text);
+  text-align: right;
+}
+
+.prog-empty {
+  margin-top: 16px;
+  font-size: 14px;
+  color: var(--text-2);
+  line-height: 1.55;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+/* Chips de 5 columnas (posiciones de pentatónica) */
+.chips-5 {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.chips-5 .chip {
+  font: 700 16px var(--font-display);
+  padding: 14px 4px;
+}
+
+/* Tarjeta a ancho completo dentro de metro-grid */
+.metro-grid .full {
+  grid-column: 1 / -1;
+}
+
+/* ---------- Temporizador por tema ---------- */
+.todo-chip {
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  color: var(--text-2);
+  border-radius: 999px;
+  padding: 7px 11px;
+  font: 600 12px var(--font-body);
+  flex: none;
+  white-space: nowrap;
+}
+
+.todo-play {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: var(--tiger);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.todo-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--tiger-soft);
+  border: 1px solid rgba(251, 106, 26, 0.4);
+  color: var(--text); /* el número permanece blanco */
+  border-radius: 999px;
+  padding: 8px 13px;
+  font: 700 13px var(--font-display);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+.todo-timer svg {
+  color: var(--tiger);
+}
+
+.todo-progress {
+  margin-top: 11px;
+  height: 4px;
+  border-radius: 99px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.todo-progress i {
+  display: block;
+  height: 100%;
+  background: var(--tiger);
+  border-radius: 99px;
+  transition: width 0.25s linear;
+}
+
+/* ---------- Afinador ---------- */
+.tuner-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 26px 18px;
+  text-align: center;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin-bottom: 14px;
+  transition: border-color 0.2s ease;
+}
+
+.tuner-card.in-tune {
+  border-color: var(--tiger);
+}
+
+.tuner-hint {
+  font-size: 14px;
+  color: var(--text-2);
+  line-height: 1.55;
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+.tuner-note {
+  min-height: 96px;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
+}
+
+.tuner-note-name {
+  font: 700 clamp(64px, 22vw, 84px)/1 var(--font-display);
+  letter-spacing: -0.03em;
+}
+
+.tuner-octave {
+  font: 700 26px var(--font-display);
+  color: var(--text-2);
+}
+
+.tuner-waiting {
+  font: 500 16px var(--font-body);
+  color: var(--text-2);
+}
+
+.tuner-scale {
+  margin-top: 22px;
+}
+
+.tuner-track {
+  position: relative;
+  height: 10px;
+  border-radius: 99px;
+  background: var(--line);
+}
+
+.tuner-center {
+  position: absolute;
+  left: 50%;
+  top: -5px;
+  bottom: -5px;
+  width: 2px;
+  background: var(--text-2);
+  transform: translateX(-50%);
+}
+
+.tuner-needle {
+  position: absolute;
+  top: -7px;
+  width: 6px;
+  height: 24px;
+  border-radius: 4px;
+  background: var(--tiger);
+  transform: translateX(-50%);
+  transition: left 0.12s ease;
+}
+
+.tuner-scale-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  font: 500 11px var(--font-body);
+  color: var(--text-2);
+}
+
+.tuner-status {
+  margin-top: 18px;
+  min-height: 22px;
+  font: 600 15px var(--font-body);
+  color: var(--text-2);
+}
+
+.tuner-status .ok {
+  color: var(--tiger);
+}
+
+.tuner-freq {
+  margin-top: 6px;
+  font: 500 12px var(--font-display);
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
 }

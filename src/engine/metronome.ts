@@ -6,6 +6,9 @@
 
 export type ClickKind = 'accent' | 'beat' | 'sub';
 
+/** Sonidos del click, sintetizados con Web Audio (sin archivos de audio). */
+export type SoundPreset = 'click' | 'wood' | 'cowbell' | 'beep';
+
 export interface TimeSignature {
   beats: number;
   unit: number;
@@ -29,6 +32,8 @@ export class Metronome {
   timeSignature: TimeSignature = { beats: 4, unit: 4 };
   /** Subdivisiones por tiempo: 1 negras, 2 corcheas, 3 tresillos, 4 semicorcheas. */
   subdivision = 1;
+  /** Sonido del click. */
+  sound: SoundPreset = 'click';
   /** Entrenador de pulso: alterna compases audibles y en silencio. */
   gapEnabled = false;
   gapBarsOn = 4;
@@ -119,19 +124,96 @@ export class Metronome {
     }
   }
 
+  private noiseBuffer: AudioBuffer | null = null;
+
+  private getNoiseBuffer(): AudioBuffer {
+    if (!this.noiseBuffer && this.ctx) {
+      const len = Math.floor(this.ctx.sampleRate * 0.06);
+      const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+      this.noiseBuffer = buf;
+    }
+    return this.noiseBuffer as AudioBuffer;
+  }
+
   private click(time: number, kind: ClickKind): void {
+    if (!this.ctx) return;
+    const vol = kind === 'accent' ? 0.5 : kind === 'beat' ? 0.35 : 0.18;
+    switch (this.sound) {
+      case 'wood':
+        this.playWood(time, kind, vol);
+        break;
+      case 'cowbell':
+        this.playCowbell(time, kind, vol);
+        break;
+      case 'beep':
+        this.playTone(time, 'sine', kind === 'accent' ? 880 : kind === 'beat' ? 660 : 440, vol, 0.08);
+        break;
+      default:
+        this.playTone(time, 'sine', kind === 'accent' ? 1500 : kind === 'beat' ? 1000 : 640, vol, 0.05);
+    }
+  }
+
+  private playTone(
+    time: number,
+    type: OscillatorType,
+    freq: number,
+    vol: number,
+    decay: number,
+  ): void {
     if (!this.ctx) return;
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
-    const freq = kind === 'accent' ? 1500 : kind === 'beat' ? 1000 : 640;
-    const vol = kind === 'accent' ? 0.5 : kind === 'beat' ? 0.35 : 0.18;
+    osc.type = type;
     osc.frequency.value = freq;
     gain.gain.setValueAtTime(vol, time);
-    gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + decay);
     osc.connect(gain);
     gain.connect(this.ctx.destination);
     osc.start(time);
-    osc.stop(time + 0.06);
+    osc.stop(time + decay + 0.01);
+  }
+
+  /** Wood block: ráfaga de ruido filtrada en banda, decaimiento muy corto. */
+  private playWood(time: number, kind: ClickKind, vol: number): void {
+    if (!this.ctx) return;
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.getNoiseBuffer();
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = kind === 'accent' ? 1800 : 1200;
+    filter.Q.value = 9;
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(vol * 2.2, time);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.045);
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.ctx.destination);
+    src.start(time);
+    src.stop(time + 0.06);
+  }
+
+  /** Cowbell clásico: dos ondas cuadradas desafinadas (≈587 y 845 Hz). */
+  private playCowbell(time: number, kind: ClickKind, vol: number): void {
+    if (!this.ctx) return;
+    const gain = this.ctx.createGain();
+    const base = kind === 'accent' ? 1.25 : 1;
+    gain.gain.setValueAtTime(vol * 0.8, time);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.09);
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.value = 400;
+    for (const f of [587, 845]) {
+      const osc = this.ctx.createOscillator();
+      osc.type = 'square';
+      osc.frequency.value = f * base;
+      osc.connect(filter);
+      osc.start(time);
+      osc.stop(time + 0.1);
+    }
+    filter.connect(gain);
+    gain.connect(this.ctx.destination);
   }
 
   private advance(): void {

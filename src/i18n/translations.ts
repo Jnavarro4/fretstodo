@@ -6,6 +6,7 @@ export interface DefaultTodo {
   title: string;
   sub: string;
   link?: 'train' | 'metro';
+  minutes?: number;
 }
 
 export interface Dictionary {
@@ -62,6 +63,45 @@ export interface Dictionary {
   pulse_trainer: string;
   pulse_trainer_sub: string;
   silent_bar: string;
+  sound: string;
+  sound_click: string;
+  sound_wood: string;
+  sound_cowbell: string;
+  sound_beep: string;
+  tab_progress: string;
+  hub_pick: string;
+  hub_intervals_sub: string;
+  hub_penta: string;
+  hub_penta_sub: string;
+  cfg_positions: string;
+  cfg_scale_type: string;
+  scale_minor: string;
+  scale_major: string;
+  scale_rand: string;
+  position: (n: number) => string;
+  penta_of: string;
+  lbl_key: string;
+  lbl_scale: string;
+  prog_totals: string;
+  prog_sessions: string;
+  prog_minutes: string;
+  prog_exercises: string;
+  prog_intervals: string;
+  prog_positions: string;
+  prog_empty: string;
+  times: (n: number) => string;
+  tab_tools: string;
+  tool_metro_sub: string;
+  tool_tuner: string;
+  tool_tuner_sub: string;
+  tuner_intro: string;
+  tuner_start: string;
+  tuner_listening: string;
+  tuner_denied: string;
+  tuner_in_tune: string;
+  tuner_low: string;
+  tuner_high: string;
+  min_chip: (n: number) => string;
 }
 
 export const translations: Record<Lang, Dictionary> = {
@@ -79,10 +119,10 @@ export const translations: Record<Lang, Dictionary> = {
     todo_placeholder: 'Agregar tarea de práctica…',
     go: 'Ir',
     default_todos: [
-      { title: 'Calentamiento y estiramiento', sub: '5 min · manos y muñecas' },
-      { title: 'Intervalos en el diapasón', sub: '10 min · Interval Trainer', link: 'train' },
-      { title: 'Pulso con metrónomo', sub: '10 min · negras y corcheas a 80 BPM', link: 'metro' },
-      { title: 'Notas del diapasón', sub: '5 min · cuerdas 6 y 5' },
+      { title: 'Calentamiento y estiramiento', sub: 'Manos y muñecas', minutes: 5 },
+      { title: 'Intervalos en el diapasón', sub: 'Interval Trainer', link: 'train', minutes: 10 },
+      { title: 'Pulso con metrónomo', sub: 'Negras y corcheas a 80 BPM', link: 'metro', minutes: 10 },
+      { title: 'Notas del diapasón', sub: 'Cuerdas 6 y 5', minutes: 5 },
     ],
     cfg_intervals: 'Intervalos',
     cfg_direction: 'Dirección',
@@ -128,6 +168,45 @@ export const translations: Record<Lang, Dictionary> = {
     pulse_trainer: 'Entrenador de pulso',
     pulse_trainer_sub: '4 compases con click, 4 en silencio: mantené el tempo interno',
     silent_bar: 'compás en silencio — seguí el pulso',
+    sound: 'Sonido',
+    sound_click: 'Click',
+    sound_wood: 'Wood block',
+    sound_cowbell: 'Cencerro',
+    sound_beep: 'Beep',
+    tab_progress: 'Progreso',
+    hub_pick: '¿Qué querés entrenar?',
+    hub_intervals_sub: 'Localizá intervalos en el diapasón',
+    hub_penta: 'Pentatónicas',
+    hub_penta_sub: 'Posiciones 1–5 en todas las tonalidades',
+    cfg_positions: 'Posiciones',
+    cfg_scale_type: 'Tipo de escala',
+    scale_minor: 'Menor',
+    scale_major: 'Mayor',
+    scale_rand: 'Aleatorio',
+    position: (n) => `Posición ${n}`,
+    penta_of: 'Pentatónica',
+    lbl_key: 'Tonalidad',
+    lbl_scale: 'Escala',
+    prog_totals: 'Totales históricos',
+    prog_sessions: 'sesiones',
+    prog_minutes: 'minutos',
+    prog_exercises: 'ejercicios',
+    prog_intervals: 'Intervalos practicados',
+    prog_positions: 'Posiciones de pentatónica',
+    prog_empty: 'Todavía no hay datos. Completá una sesión de entrenamiento y acá vas a ver en qué estás fuerte y qué te falta practicar.',
+    times: (n) => (n === 1 ? '1 vez' : `${n} veces`),
+    tab_tools: 'Herramientas',
+    tool_metro_sub: 'Tempo, compases, subdivisiones y entrenador de pulso',
+    tool_tuner: 'Afinador',
+    tool_tuner_sub: 'Afiná con el micrófono, nota y cents en tiempo real',
+    tuner_intro: 'Tocá una cuerda al aire y el afinador detecta la nota con el micrófono.',
+    tuner_start: 'Activar micrófono',
+    tuner_listening: 'Escuchando…',
+    tuner_denied: 'No hay permiso de micrófono. Activalo en los ajustes del navegador para usar el afinador.',
+    tuner_in_tune: 'Afinada',
+    tuner_low: 'Baja',
+    tuner_high: 'Alta',
+    min_chip: (n) => `${n} min`,
   },
   en: {
     tab_today: 'Today',
@@ -143,10 +222,10 @@ export const translations: Record<Lang, Dictionary> = {
     todo_placeholder: 'Add a practice task…',
     go: 'Go',
     default_todos: [
-      { title: 'Warm-up & stretching', sub: '5 min · hands and wrists' },
-      { title: 'Fretboard intervals', sub: '10 min · Interval Trainer', link: 'train' },
-      { title: 'Pulse with metronome', sub: '10 min · quarters & eighths at 80 BPM', link: 'metro' },
-      { title: 'Fretboard notes', sub: '5 min · strings 6 and 5' },
+      { title: 'Warm-up & stretching', sub: 'Hands and wrists', minutes: 5 },
+      { title: 'Fretboard intervals', sub: 'Interval Trainer', link: 'train', minutes: 10 },
+      { title: 'Pulse with metronome', sub: 'Quarters & eighths at 80 BPM', link: 'metro', minutes: 10 },
+      { title: 'Fretboard notes', sub: 'Strings 6 and 5', minutes: 5 },
     ],
     cfg_intervals: 'Intervals',
     cfg_direction: 'Direction',
@@ -192,5 +271,44 @@ export const translations: Record<Lang, Dictionary> = {
     pulse_trainer: 'Pulse trainer',
     pulse_trainer_sub: '4 bars with click, 4 silent: keep the internal tempo',
     silent_bar: 'silent bar — keep the pulse',
+    sound: 'Sound',
+    sound_click: 'Click',
+    sound_wood: 'Wood block',
+    sound_cowbell: 'Cowbell',
+    sound_beep: 'Beep',
+    tab_progress: 'Progress',
+    hub_pick: 'What do you want to train?',
+    hub_intervals_sub: 'Find intervals on the fretboard',
+    hub_penta: 'Pentatonics',
+    hub_penta_sub: 'Positions 1–5 in every key',
+    cfg_positions: 'Positions',
+    cfg_scale_type: 'Scale type',
+    scale_minor: 'Minor',
+    scale_major: 'Major',
+    scale_rand: 'Random',
+    position: (n) => `Position ${n}`,
+    penta_of: 'Pentatonic',
+    lbl_key: 'Key',
+    lbl_scale: 'Scale',
+    prog_totals: 'All-time totals',
+    prog_sessions: 'sessions',
+    prog_minutes: 'minutes',
+    prog_exercises: 'exercises',
+    prog_intervals: 'Intervals practiced',
+    prog_positions: 'Pentatonic positions',
+    prog_empty: 'No data yet. Complete a training session and you will see here what you are strong at and what needs practice.',
+    times: (n) => (n === 1 ? '1 time' : `${n} times`),
+    tab_tools: 'Tools',
+    tool_metro_sub: 'Tempo, time signatures, subdivisions and pulse trainer',
+    tool_tuner: 'Tuner',
+    tool_tuner_sub: 'Tune with the mic, note and cents in real time',
+    tuner_intro: 'Play an open string and the tuner detects the note with the microphone.',
+    tuner_start: 'Enable microphone',
+    tuner_listening: 'Listening…',
+    tuner_denied: 'Microphone permission missing. Enable it in your browser settings to use the tuner.',
+    tuner_in_tune: 'In tune',
+    tuner_low: 'Flat',
+    tuner_high: 'Sharp',
+    min_chip: (n) => `${n} min`,
   },
 };

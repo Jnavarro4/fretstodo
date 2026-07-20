@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { bpmFromTaps, Metronome, type SoundPreset } from '../engine/metronome';
+import { bpmFromTaps, type SoundPreset } from '../engine/metronome';
+import { getMetronome } from '../state/metronomeSingleton';
 import { useI18n } from '../i18n/I18nContext';
 import { Switch } from '../components/Switch';
 import { useWakeLock } from '../hooks/useWakeLock';
@@ -13,35 +14,34 @@ interface MetronomeScreenProps {
 export function MetronomeScreen({ onBack }: MetronomeScreenProps) {
   const { t } = useI18n();
 
-  const [bpm, setBpm] = useState(100);
-  const [tsLabel, setTsLabel] = useState('4/4');
-  const [subdivision, setSubdivision] = useState(1);
-  const [sound, setSound] = useState<SoundPreset>('click');
-  const [gap, setGap] = useState(false);
-  const [playing, setPlaying] = useState(false);
+  /* Singleton: el metrónomo sigue sonando aunque cambies de tab.
+     Al volver, la pantalla lee su estado real y se re-engancha al visual. */
+  const metro = getMetronome();
+
+  const [bpm, setBpm] = useState(metro.bpm);
+  const [tsLabel, setTsLabel] = useState(
+    `${metro.timeSignature.beats}/${metro.timeSignature.unit}`,
+  );
+  const [subdivision, setSubdivision] = useState(metro.subdivision);
+  const [sound, setSound] = useState<SoundPreset>(metro.sound);
+  const [gap, setGap] = useState(metro.gapEnabled);
+  const [playing, setPlaying] = useState(metro.playing);
   const [activeBeat, setActiveBeat] = useState<number | null>(null);
   const [silentBar, setSilentBar] = useState(false);
 
   /** La pantalla no se apaga mientras el metrónomo suena. */
   useWakeLock(playing);
 
-  const metroRef = useRef<Metronome | null>(null);
   const tapsRef = useRef<number[]>([]);
 
-  if (metroRef.current === null) {
-    metroRef.current = new Metronome({
-      onVisual: (ev) => {
-        if (ev.isBeatStart) setActiveBeat(ev.beat);
-        setSilentBar(!ev.audible);
-      },
-    });
-  }
-  const metro = metroRef.current;
-
   useEffect(() => {
+    const handler = (ev: { beat: number; isBeatStart: boolean; audible: boolean }) => {
+      if (ev.isBeatStart) setActiveBeat(ev.beat);
+      setSilentBar(!ev.audible);
+    };
+    metro.onVisual = handler;
     return () => {
-      metro.dispose();
-      metroRef.current = null;
+      if (metro.onVisual === handler) metro.onVisual = undefined;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

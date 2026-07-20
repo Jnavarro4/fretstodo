@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  pentaBox,
   POSITIONS,
   randomPentaDrill,
   type PentaDrill,
@@ -9,7 +10,10 @@ import {
 import { useI18n } from '../i18n/I18nContext';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useWakeLock } from '../hooks/useWakeLock';
+import { usePitch } from '../hooks/usePitch';
+import { playChime } from '../utils/chime';
 import { Segmented } from '../components/Segmented';
+import { FretboardDiagram } from '../components/FretboardDiagram';
 
 interface PentatonicTrainerProps {
   onDrill: (position: Position) => void;
@@ -20,7 +24,11 @@ interface PentatonicTrainerProps {
 interface PentaSettings {
   positions: Position[];
   typeMode: ScaleTypeMode;
+  /** Modo Escúchame recordado entre sesiones. */
+  coach: boolean;
 }
+
+const COMPLETE_NEXT_DELAY_MS = 1400;
 
 export function PentatonicTrainer({ onDrill, onSessionEnd, onBack }: PentatonicTrainerProps) {
   const { t } = useI18n();
@@ -28,15 +36,60 @@ export function PentatonicTrainer({ onDrill, onSessionEnd, onBack }: PentatonicT
   const [settings, setSettings] = useLocalStorage<PentaSettings>('fretstodo.penta', {
     positions: [...POSITIONS],
     typeMode: 'minor',
+    coach: false,
   });
 
   const [drill, setDrill] = useState<PentaDrill | null>(null);
   const [count, setCount] = useState(0);
   const [elapsed, setElapsed] = useState(0);
+  const [played, setPlayed] = useState<Set<number>>(new Set());
+  const [complete, setComplete] = useState(false);
   const startRef = useRef<number | null>(null);
+  const completeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inSession = drill !== null;
 
   useWakeLock(inSession);
+
+  /* ---------- Coach: escucha con micrófono ---------- */
+  const coachOn = (settings.coach ?? false) && inSession;
+  const { state: micState, pitch } = usePitch(coachOn);
+
+  const box = useMemo(
+    () => (drill ? pentaBox(drill.key, drill.type, drill.position) : null),
+    [drill],
+  );
+  const boxMidis = useMemo(() => new Set(box?.dots.map((d) => d.midi) ?? []), [box]);
+
+  /** Nota sonando que pertenece a la caja actual. */
+  const activeMidi = pitch && boxMidis.has(pitch.midi) ? pitch.midi : null;
+
+  /* Nota detectada dentro de la caja → marcarla como tocada */
+  useEffect(() => {
+    if (activeMidi === null || complete) return;
+    setPlayed((prev) => {
+      if (prev.has(activeMidi)) return prev;
+      const next = new Set(prev);
+      next.add(activeMidi);
+      return next;
+    });
+  }, [activeMidi, complete]);
+
+  /* Caja completa → celebrar y avanzar solo */
+  useEffect(() => {
+    if (!inSession || !box || complete) return;
+    if (boxMidis.size > 0 && played.size >= boxMidis.size) {
+      setComplete(true);
+      playChime();
+      completeTimerRef.current = setTimeout(() => next(), COMPLETE_NEXT_DELAY_MS);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [played, boxMidis, inSession, complete]);
+
+  useEffect(() => {
+    return () => {
+      if (completeTimerRef.current) clearTimeout(completeTimerRef.current);
+    };
+  }, []);
 
   const togglePosition = (pos: Position) =>
     setSettings((prev) => ({
@@ -46,7 +99,12 @@ export function PentatonicTrainer({ onDrill, onSessionEnd, onBack }: PentatonicT
         : [...prev.positions, pos].sort((a, b) => a - b),
     }));
 
+  const toggleCoach = () => setSettings((prev) => ({ ...prev, coach: !(prev.coach ?? false) }));
+
   const next = useCallback(() => {
+    if (completeTimerRef.current) clearTimeout(completeTimerRef.current);
+    setPlayed(new Set());
+    setComplete(false);
     setDrill((prev) => {
       const d = randomPentaDrill(settings.positions, settings.typeMode, prev);
       if (!d) return prev;
@@ -69,6 +127,8 @@ export function PentatonicTrainer({ onDrill, onSessionEnd, onBack }: PentatonicT
     }
     startRef.current = null;
     setDrill(null);
+    setPlayed(new Set());
+    setComplete(false);
   }, [onSessionEnd]);
 
   useEffect(() => end, [end]);
@@ -133,6 +193,21 @@ export function PentatonicTrainer({ onDrill, onSessionEnd, onBack }: PentatonicT
           ]}
         />
 
+        <div className="eyebrow">{t.cfg_options}</div>
+        <div className="opt-row">
+          <div>
+            <div className="lbl">{t.coach_listen}</div>
+            <div className="sub">{t.coach_listen_sub}</div>
+          </div>
+          <button
+            className={`switch${settings.coach ? ' on' : ''}`}
+            role="switch"
+            aria-checked={settings.coach ?? false}
+            aria-label={t.coach_listen}
+            onClick={toggleCoach}
+          />
+        </div>
+
         <button className="cta" disabled={settings.positions.length === 0} onClick={start}>
           {t.start}
         </button>
@@ -154,23 +229,60 @@ export function PentatonicTrainer({ onDrill, onSessionEnd, onBack }: PentatonicT
         </div>
       </div>
 
-      <div className="stage" role="button" aria-label={t.next} onClick={next}>
-        <div className="strings">
-          <i /><i /><i /><i /><i /><i />
-        </div>
-        <div style={{ textAlign: 'center' }}>
-          <div className="field-label">{t.lbl_key}</div>
-          <div className="root-note" key={`k${count}`}>
-            {drill.key}
+      <div
+        className={`stage stage-penta${complete ? ' stage-complete' : ''}`}
+        role="button"
+        aria-label={t.next}
+        onClick={next}
+      >
+        <div className="penta-head">
+          <div style={{ textAlign: 'center' }}>
+            <div className="field-label">{t.lbl_key}</div>
+            <div className="root-note root-note-sm" key={`k${count}`}>
+              {drill.key}
+            </div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div className="interval-name interval-name-sm" key={`s${count}`}>
+              {scaleLabel(drill.type)}
+            </div>
+            <div className="direction-tag">{t.position(drill.position)}</div>
           </div>
         </div>
-        <div style={{ textAlign: 'center' }}>
-          <div className="field-label">{t.lbl_scale}</div>
-          <div className="interval-name" key={`s${count}`}>
-            {scaleLabel(drill.type)}
-          </div>
+
+        {box && (
+          <FretboardDiagram
+            key={`f${count}`}
+            box={box}
+            playedMidis={settings.coach ? played : undefined}
+            activeMidi={settings.coach ? activeMidi : null}
+          />
+        )}
+
+        {/* Barra del Coach: estado del micrófono + progreso de la caja */}
+        <div className="coach-bar" onClick={(e) => e.stopPropagation()}>
+          <button
+            className={`coach-mic${settings.coach ? ' on' : ''}`}
+            aria-pressed={settings.coach ?? false}
+            onClick={toggleCoach}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="9" y="3" width="6" height="11" rx="3" />
+              <path d="M5 11a7 7 0 0 0 14 0" />
+              <line x1="12" y1="18" x2="12" y2="21" />
+            </svg>
+            {t.coach_listen}
+          </button>
+          {settings.coach && micState === 'listening' && !complete && (
+            <span className="coach-progress">
+              {played.size}/{boxMidis.size}
+            </span>
+          )}
+          {settings.coach && micState === 'denied' && (
+            <span className="coach-denied">{t.coach_denied}</span>
+          )}
+          {complete && <span className="coach-complete">✓ {t.coach_complete}</span>}
         </div>
-        <div className="direction-tag">{t.position(drill.position)}</div>
       </div>
 
       <button className="next-btn" onClick={next}>

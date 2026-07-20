@@ -48,7 +48,8 @@ export class Metronome {
   private currentSub = 0;
   private currentBar = 0;
   private visualTimeouts: ReturnType<typeof setTimeout>[] = [];
-  private onVisual?: (ev: MetronomeVisualEvent) => void;
+  /** Callback visual re-asignable: la pantalla activa se engancha y desengancha. */
+  onVisual?: (ev: MetronomeVisualEvent) => void;
 
   constructor(options: MetronomeOptions = {}) {
     this.onVisual = options.onVisual;

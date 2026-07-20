@@ -1,106 +1,46 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useI18n } from '../i18n/I18nContext';
-import { useWakeLock } from '../hooks/useWakeLock';
 import { translations } from '../i18n/translations';
 import { ProgressBar } from '../components/ProgressBar';
-import type { Tab, Totals, Todo } from '../types';
+import type { RunningTimer, Tab, Totals, Todo } from '../types';
+
+const MINUTE_STEPS = [5, 10, 15, 20, 25, 30, 45, 60];
 
 interface TodayScreenProps {
   todos: Todo[];
   setTodos: (updater: (prev: Todo[]) => Todo[]) => void;
   totals: Totals;
   goTab: (tab: Tab) => void;
+  /** Temporizador global (vive en App: sobrevive al cambio de tab). */
+  timer: RunningTimer | null;
+  now: number;
+  onStartTimer: (todo: Todo) => void;
+  onStopTimer: () => void;
 }
 
-const MINUTE_STEPS = [5, 10, 15, 20, 25, 30, 45, 60];
-
-interface RunningTimer {
-  todoId: string;
-  endsAt: number;
-  totalSecs: number;
-}
-
-/** Campanita de fin de estudio (Web Audio, dos notas). */
-function playChime() {
-  try {
-    const ctx = new AudioContext();
-    const now = ctx.currentTime;
-    [880, 1320].forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      const t0 = now + i * 0.18;
-      gain.gain.setValueAtTime(0.35, t0);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.5);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(t0);
-      osc.stop(t0 + 0.55);
-    });
-    setTimeout(() => void ctx.close(), 1500);
-  } catch {
-    /* sin audio disponible: el temporizador igual marca la tarea */
-  }
-}
-
-export function TodayScreen({ todos, setTodos, totals, goTab }: TodayScreenProps) {
+export function TodayScreen({
+  todos,
+  setTodos,
+  totals,
+  goTab,
+  timer,
+  now,
+  onStartTimer,
+  onStopTimer,
+}: TodayScreenProps) {
   const { lang, t } = useI18n();
   const [draft, setDraft] = useState('');
-  const [timer, setTimer] = useState<RunningTimer | null>(null);
-  const [now, setNow] = useState(Date.now());
-  const timerRef = useRef<RunningTimer | null>(null);
-  timerRef.current = timer;
-
-  /** La pantalla no se apaga mientras corre un temporizador de estudio. */
-  useWakeLock(timer !== null);
-
-  useEffect(() => {
-    if (!timer) return;
-    const id = setInterval(() => {
-      const current = timerRef.current;
-      if (!current) return;
-      const nowMs = Date.now();
-      setNow(nowMs);
-      if (nowMs >= current.endsAt) {
-        playChime();
-        setTodos((prev) =>
-          prev.map((td) => (td.id === current.todoId ? { ...td, done: true } : td)),
-        );
-        setTimer(null);
-      }
-    }, 250);
-    return () => clearInterval(id);
-  }, [timer, setTodos]);
-
-  const startTimer = (todoId: string, minutes: number) => {
-    const totalSecs = minutes * 60;
-    setNow(Date.now());
-    setTimer({ todoId, endsAt: Date.now() + totalSecs * 1000, totalSecs });
-  };
-
-  const stopTimer = () => setTimer(null);
-
-  const cycleMinutes = (id: string) => {
-    setTodos((prev) =>
-      prev.map((td) => {
-        if (td.id !== id) return td;
-        const current = td.minutes ?? 0;
-        const idx = MINUTE_STEPS.indexOf(current);
-        const next = MINUTE_STEPS[(idx + 1) % MINUTE_STEPS.length];
-        return { ...td, minutes: next };
-      }),
-    );
-  };
 
   const done = todos.filter((td) => td.done).length;
   const percent = todos.length ? Math.round((done / todos.length) * 100) : 0;
 
-  const dateLabel = new Date().toLocaleDateString(lang === 'es' ? 'es-CO' : 'en-US', {
+  const rawDate = new Date().toLocaleDateString(lang === 'es' ? 'es-CO' : 'en-US', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
   });
+  /** Solo la primera letra en mayúscula: "Domingo, 19 de julio". */
+  const dateLabel = rawDate.charAt(0).toUpperCase() + rawDate.slice(1);
 
   const toggle = (id: string) => {
     setTodos((prev) => prev.map((td) => (td.id === id ? { ...td, done: !td.done } : td)));
@@ -114,6 +54,16 @@ export function TodayScreen({ todos, setTodos, totals, goTab }: TodayScreenProps
       { id: `c${Date.now()}`, title, sub: '', link: null, done: false, custom: true, minutes: 10 },
     ]);
     setDraft('');
+  };
+
+  const cycleMinutes = (id: string) => {
+    setTodos((prev) =>
+      prev.map((td) => {
+        if (td.id !== id) return td;
+        const idx = MINUTE_STEPS.indexOf(td.minutes ?? 0);
+        return { ...td, minutes: MINUTE_STEPS[(idx + 1) % MINUTE_STEPS.length] };
+      }),
+    );
   };
 
   /** Las tareas por defecto se muestran en el idioma activo aunque se hayan guardado en otro. */
@@ -149,7 +99,10 @@ export function TodayScreen({ todos, setTodos, totals, goTab }: TodayScreenProps
           const remainingLabel = `${String(Math.floor(remaining / 60)).padStart(2, '0')}:${String(remaining % 60).padStart(2, '0')}`;
           const elapsedPct = isRunning ? ((timer.totalSecs - remaining) / timer.totalSecs) * 100 : 0;
           return (
-            <div key={td.id} className={`todo${td.done ? ' done' : ''}${isRunning ? ' running' : ''}`}>
+            <div
+              key={td.id}
+              className={`todo${td.done ? ' done' : ''}${isRunning ? ' running' : ''}`}
+            >
               <div className="todo-main">
                 <button className="checkbox" aria-label={title} onClick={() => toggle(td.id)}>
                   <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -175,19 +128,15 @@ export function TodayScreen({ todos, setTodos, totals, goTab }: TodayScreenProps
                     {t.min_chip(td.minutes ?? 0)}
                   </button>
                 )}
-                {!td.done && td.minutes !== undefined && td.minutes > 0 && !isRunning && (
-                  <button
-                    className="todo-play"
-                    aria-label="▶"
-                    onClick={() => startTimer(td.id, td.minutes as number)}
-                  >
+                {!td.done && !isRunning && td.minutes !== undefined && td.minutes > 0 && (
+                  <button className="todo-play" aria-label="play" onClick={() => onStartTimer(td)}>
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
                       <path d="M3 1.5 L10.5 6 L3 10.5 Z" />
                     </svg>
                   </button>
                 )}
                 {isRunning && (
-                  <button className="todo-timer" onClick={stopTimer}>
+                  <button className="todo-timer" onClick={onStopTimer}>
                     {remainingLabel}
                     <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
                       <rect x="1" y="1" width="8" height="8" rx="1.5" />

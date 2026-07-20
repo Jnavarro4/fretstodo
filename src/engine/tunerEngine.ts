@@ -90,3 +90,16 @@ export function readingFromFrequency(frequency: number): PitchReading {
   const octave = Math.floor(rounded / 12) - 1;
   return { frequency, note, octave, cents };
 }
+
+export interface MidiReading {
+  midi: number;
+  cents: number;
+}
+
+/** Frecuencia → nota MIDI redondeada + desviación en cents. */
+export function midiFromFrequency(frequency: number): MidiReading {
+  const exact = 69 + 12 * Math.log2(frequency / 440);
+  const midi = Math.round(exact);
+  const cents = Math.round((exact - midi) * 100);
+  return { midi, cents };
+}

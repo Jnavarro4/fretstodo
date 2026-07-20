@@ -102,6 +102,10 @@ export interface Dictionary {
   tuner_low: string;
   tuner_high: string;
   min_chip: (n: number) => string;
+  coach_listen: string;
+  coach_listen_sub: string;
+  coach_denied: string;
+  coach_complete: string;
 }
 
 export const translations: Record<Lang, Dictionary> = {
@@ -207,6 +211,10 @@ export const translations: Record<Lang, Dictionary> = {
     tuner_low: 'Baja',
     tuner_high: 'Alta',
     min_chip: (n) => `${n} min`,
+    coach_listen: 'Escúchame',
+    coach_listen_sub: 'La app escucha con el micrófono y marca en verde cada nota que tocás',
+    coach_denied: 'Sin permiso de micrófono',
+    coach_complete: '¡Posición completa!',
   },
   en: {
     tab_today: 'Today',
@@ -310,5 +318,9 @@ export const translations: Record<Lang, Dictionary> = {
     tuner_low: 'Flat',
     tuner_high: 'Sharp',
     min_chip: (n) => `${n} min`,
+    coach_listen: 'Listen to me',
+    coach_listen_sub: 'The app listens with the mic and turns each note you play green',
+    coach_denied: 'No microphone permission',
+    coach_complete: 'Position complete!',
   },
 };

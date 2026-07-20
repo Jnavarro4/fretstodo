@@ -9,6 +9,8 @@
   --card-2: #1e2129;
   --line: #2a2e38;
   --tiger: #fb6a1a;            /* Pantone Orange Tiger (aprox. digital, confirmar con cliente) */
+  --green: #34d399;            /* nota tocada correctamente (modo Escúchame) */
+  --green-soft: rgba(52, 211, 153, 0.14);
   --tiger-soft: rgba(251, 106, 26, 0.14);
   --tiger-glow: rgba(251, 106, 26, 0.35);
   --text: #ffffff;
@@ -146,7 +148,7 @@ input:focus-visible {
   width: 100%;
   max-width: 560px;
   margin: 0 auto;
-  padding: 4px 20px calc(86px + var(--safe-b));
+  padding: 4px 20px calc(94px + var(--safe-b));
   display: flex;
   flex-direction: column;
 }
@@ -187,7 +189,7 @@ input:focus-visible {
   max-width: 560px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
 }
 
 .tab {
@@ -362,7 +364,6 @@ input:focus-visible {
 .today-head .date {
   font: 500 13px var(--font-body);
   color: var(--text-2);
-  text-transform: capitalize;
 }
 
 .today-head h2 {
@@ -1222,4 +1223,164 @@ input:focus-visible {
   font: 500 12px var(--font-display);
   color: var(--text-2);
   font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Pastilla flotante del temporizador ---------- */
+.timer-pill {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(76px + var(--safe-b));
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  max-width: min(88vw, 420px);
+  background: var(--card-2);
+  border: 1px solid rgba(251, 106, 26, 0.5);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 10px 16px;
+  font: 600 13px var(--font-body);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.timer-pill-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tiger);
+  flex: none;
+  animation: pulse-dot 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timer-pill-dot { animation: none; }
+}
+
+.timer-pill-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.timer-pill-time {
+  font: 700 14px var(--font-display);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+/* Con la pastilla del temporizador visible, dejar aire extra abajo */
+.app.has-pill .app-main {
+  padding-bottom: calc(148px + var(--safe-b));
+}
+
+/* ---------- Diagrama de diapasón ---------- */
+.fret-diagram {
+  width: 100%;
+  max-width: 430px;
+  margin-top: 20px;
+  padding: 0 10px;
+}
+
+.fret-diagram svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Variantes compactas para la pantalla de pentatónicas (deja lugar al diagrama) */
+.root-note-sm {
+  font-size: clamp(48px, 15vw, 60px);
+  margin-bottom: 8px;
+}
+
+.interval-name-sm {
+  font-size: 24px;
+  margin-top: 2px;
+  margin-bottom: 4px;
+}
+
+.stage-penta {
+  padding: 18px 6px;
+  cursor: pointer;
+}
+
+.stage-penta .direction-tag {
+  margin-top: 10px;
+}
+
+/* ---------- Coach Escúchame (pentatónicas) ---------- */
+.penta-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.stage-penta {
+  justify-content: flex-start;
+  padding-top: 22px;
+}
+
+.stage-complete {
+  border-color: var(--green);
+  box-shadow: 0 0 0 1px var(--green), 0 8px 32px rgba(52, 211, 153, 0.25);
+}
+
+.coach-bar {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  cursor: default;
+  min-height: 42px;
+}
+
+.coach-mic {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  color: var(--text-2);
+  border-radius: 999px;
+  padding: 10px 16px;
+  font: 600 13px var(--font-body);
+  transition: all 0.15s ease;
+}
+
+.coach-mic svg {
+  width: 16px;
+  height: 16px;
+}
+
+.coach-mic.on {
+  background: var(--green-soft);
+  border-color: rgba(52, 211, 153, 0.5);
+  color: var(--green);
+}
+
+.coach-progress {
+  font: 700 14px var(--font-display);
+  color: var(--text); /* números en blanco, regla de marca */
+  font-variant-numeric: tabular-nums;
+}
+
+.coach-denied {
+  font: 500 12px var(--font-body);
+  color: var(--text-2);
+}
+
+.coach-complete {
+  font: 700 14px var(--font-display);
+  color: var(--green);
+  animation: pop 0.25s ease;
 }

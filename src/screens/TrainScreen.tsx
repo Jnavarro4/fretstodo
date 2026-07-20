@@ -20,6 +20,8 @@ interface TrainScreenProps {
   onExercise: (intervalId: IntervalId) => void;
   onPentaDrill: (position: Position) => void;
   onSessionEnd: (seconds: number) => void;
+  /** Al llegar desde el play de la rutina: abre Intervalos con la sesión ya corriendo. */
+  autoStartIntervals?: boolean;
 }
 
 type TrainerId = 'hub' | 'intervals' | 'penta';
@@ -34,7 +36,7 @@ interface TrainSettings {
 
 const ALL_IDS = INTERVALS.map((i) => i.id);
 
-export function TrainScreen({ onExercise, onPentaDrill, onSessionEnd }: TrainScreenProps) {
+export function TrainScreen({ onExercise, onPentaDrill, onSessionEnd, autoStartIntervals }: TrainScreenProps) {
   const { t } = useI18n();
   const [trainer, setTrainer] = useState<TrainerId>('hub');
 
@@ -71,7 +73,8 @@ export function TrainScreen({ onExercise, onPentaDrill, onSessionEnd }: TrainScr
 
   const next = useCallback(() => {
     setExercise((prev) => {
-      const ex = randomExercise(settings.enabled, settings.dir, prev);
+      const pool = settings.enabled.length > 0 ? settings.enabled : ALL_IDS;
+      const ex = randomExercise(pool, settings.dir, prev);
       if (!ex) return prev;
       setCount((c) => c + 1);
       setRevealed(false);
@@ -98,6 +101,15 @@ export function TrainScreen({ onExercise, onPentaDrill, onSessionEnd }: TrainScr
 
   /** Al desmontar (cambio de tab) la sesión se cierra y suma sus minutos. */
   useEffect(() => end, [end]);
+
+  /** Play en la rutina → directo al ejercicio, sin pasar por menús. */
+  useEffect(() => {
+    if (autoStartIntervals) {
+      setTrainer('intervals');
+      start();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!inSession) return;

@@ -43,3 +43,10 @@ export const EMPTY_STATS: SkillStats = {
   exercises: 0,
   seconds: 0,
 };
+
+/** Temporizador de estudio en curso (global, persiste en localStorage). */
+export interface RunningTimer {
+  todoId: string;
+  endsAt: number;
+  totalSecs: number;
+}
